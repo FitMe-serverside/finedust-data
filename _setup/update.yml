@@ -1,0 +1,34 @@
+name: Update air quality
+
+on:
+  schedule:
+    # 매시 17분(UTC 기준이지만 분 단위라 한국 시간도 매시 17분). 에어코리아는 정시 측정값을 보통 15분 전후에 올린다.
+    - cron: "17 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: update-air
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Fetch AirKorea
+        env:
+          AIRKOREA_KEY: ${{ secrets.AIRKOREA_KEY }}
+        run: python scripts/fetch.py
+      - name: Commit if changed
+        run: |
+          git config user.name "finedust-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          if git diff --cached --quiet; then echo "no changes"; else git commit -m "air $(date -u +%FT%H:%MZ)" && git push; fi
