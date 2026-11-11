@@ -1,2 +1,4 @@
 _setup/*.log
 data/*.tmp
+
+_setup/check*

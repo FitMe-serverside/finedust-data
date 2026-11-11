@@ -2,8 +2,9 @@ name: Update air quality
 
 on:
   schedule:
-    # 매시 17분(UTC 기준이지만 분 단위라 한국 시간도 매시 17분). 에어코리아는 정시 측정값을 보통 15분 전후에 올린다.
-    - cron: "17 * * * *"
+    # 10분마다 확인(전국 1번 호출). GitHub 예약 실행은 늦거나 빠질 때가 있어 자주 돌려 둔다.
+    # 새 값이 있을 때만 커밋한다.
+    - cron: "*/10 * * * *"
   workflow_dispatch:
 
 permissions:

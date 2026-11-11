@@ -1,8 +1,10 @@
 """에어코리아(한국환경공단) 대기질 값을 받아 data/now.json, data/stations.json 으로 저장한다.
 
-- now.json: 1시간마다. 전국 17개 시도 실시간 측정값(17번 호출).
+- now.json: 10분마다 확인. 전국 실시간 측정값을 sidoName=전국 한 번에 받는다(1번 호출).
+  값이 바뀌었을 때만 파일을 고친다(커밋도 그때만).
+  전국 호출이 실패하면 17개 시도를 하나씩 받는다(17번 호출).
 - stations.json: 하루 한 번(또는 없을 때). 전국 측정소 위치(1번 호출).
-호출 수: 하루 최대 17*24 + 1 = 409번 (기능별 하루 500번 한도 안).
+호출 수: 보통 하루 144 + 1 = 145번 (기능별 하루 500번 한도 안).
 값은 바꾸지 않고 그대로 옮긴다(라이선스: 저작자표시-변경금지). 출처: 에어코리아(환경부·한국환경공단).
 """
 import json
@@ -80,7 +82,29 @@ def update_stations():
     print("stations", len(st))
 
 
-def update_now():
+def row(it, sido):
+    return {
+        "t": it.get("dataTime"), "s": sido,
+        "pm10": num(it.get("pm10Value")), "pm25": num(it.get("pm25Value")),
+        "o3": num(it.get("o3Value")), "no2": num(it.get("no2Value")),
+        "co": num(it.get("coValue")), "so2": num(it.get("so2Value")),
+        "khai": num(it.get("khaiValue")),
+    }
+
+
+def fetch_all():
+    """전국을 한 번에 받는다(실패하면 None)."""
+    try:
+        items = call("ArpltnInforInqireSvc/getCtprvnRltmMesureDnsty",
+                     sidoName="전국", numOfRows=1000, pageNo=1, ver="1.0")
+    except Exception as e:
+        print("all failed", e, file=sys.stderr)
+        return None
+    out = {it["stationName"]: row(it, it.get("sidoName") or "") for it in items}
+    return out if len(out) >= 300 else None
+
+
+def fetch_by_sido(prev):
     out, failed = {}, []
     for sido in SIDO:
         try:
@@ -91,28 +115,32 @@ def update_now():
             failed.append(sido)
             continue
         for it in items:
-            out[it["stationName"]] = {
-                "t": it.get("dataTime"), "s": sido,
-                "pm10": num(it.get("pm10Value")), "pm25": num(it.get("pm25Value")),
-                "o3": num(it.get("o3Value")), "no2": num(it.get("no2Value")),
-                "co": num(it.get("coValue")), "so2": num(it.get("so2Value")),
-                "khai": num(it.get("khaiValue")),
-            }
-    if not out:
-        raise RuntimeError("no data at all")
+            out[it["stationName"]] = row(it, sido)
     # 일부 시도가 실패하면 지난 값을 남겨 둔다(앱은 t로 오래된 값을 알 수 있음).
+    for k, v in prev.items():
+        if v.get("s") in failed and k not in out:
+            out[k] = v
+    print("by sido, failed", failed)
+    return out
+
+
+def update_now():
     path = os.path.join(DATA, "now.json")
-    if failed and os.path.exists(path):
+    prev = {}
+    if os.path.exists(path):
         try:
             prev = json.load(open(path, encoding="utf-8")).get("stations", {})
-            for k, v in prev.items():
-                if v.get("s") in failed and k not in out:
-                    out[k] = v
         except Exception:
             pass
+    out = fetch_all() or fetch_by_sido(prev)
+    if not out:
+        raise RuntimeError("no data at all")
+    if out == prev:
+        print("no new data")
+        return
     write("now.json", {"updated": datetime.now(KST).strftime("%Y-%m-%d %H:%M"),
                         "source": "에어코리아(환경부·한국환경공단)", "stations": out})
-    print("now", len(out), "failed", failed)
+    print("now", len(out))
 
 
 if __name__ == "__main__":

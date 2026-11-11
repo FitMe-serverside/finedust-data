@@ -15,7 +15,7 @@ git config core.autocrlf false
 git fetch origin main >> "%LOG%" 2>&1
 git reset origin/main >> "%LOG%" 2>&1
 git add -A >> "%LOG%" 2>&1
-git commit -m "add hourly AirKorea fetch" >> "%LOG%" 2>&1
+git commit -m "fetch all stations in one call every 10 minutes" >> "%LOG%" 2>&1
 git push -u origin main >> "%LOG%" 2>&1
 echo PUSH_EXIT=%errorlevel% >> "%LOG%"
 echo [%date% %time%] DONE >> "%LOG%"
