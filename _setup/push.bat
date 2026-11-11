@@ -14,8 +14,10 @@ git config user.email "postshare.co.kr@gmail.com"
 git config core.autocrlf false
 git fetch origin main >> "%LOG%" 2>&1
 git reset origin/main >> "%LOG%" 2>&1
+rem data 폴더는 GitHub Actions가 만든다. PC에 없어서 지워지지 않도록 GitHub 것을 그대로 가져온다.
+git checkout origin/main -- data >> "%LOG%" 2>&1
 git add -A >> "%LOG%" 2>&1
-git commit -m "fetch all stations in one call every 10 minutes" >> "%LOG%" 2>&1
+git commit -m "update relay scripts" >> "%LOG%" 2>&1
 git push -u origin main >> "%LOG%" 2>&1
 echo PUSH_EXIT=%errorlevel% >> "%LOG%"
 echo [%date% %time%] DONE >> "%LOG%"
